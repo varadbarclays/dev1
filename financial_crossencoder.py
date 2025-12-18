@@ -34,15 +34,15 @@ def load_financebench_data():
     for split in dataset.keys():
         for item in dataset[split]:
             query = item.get('question', '')
-            context = item.get('context', '')
-            answer = item.get('answer', '')
+            # FinanceBench has evidence as a list of dicts with evidence_text
+            evidence_list = item.get('evidence', [])
             
-            if query and context:
-                # Positive example: query matches context
-                train_samples.append(InputExample(texts=[query, context], label=1.0))
-                
-                # Create negative examples by shuffling contexts
-                # This helps the model learn to distinguish relevant from irrelevant
+            if query and evidence_list:
+                for evidence_item in evidence_list:
+                    evidence_text = evidence_item.get('evidence_text', '')
+                    if evidence_text:
+                        # Positive example: query matches evidence
+                        train_samples.append(InputExample(texts=[query, evidence_text], label=1.0))
     
     print(f"Created {len(train_samples)} samples from FinanceBench")
     return train_samples
@@ -57,19 +57,15 @@ def load_finder_data():
         
         for split in dataset.keys():
             for item in dataset[split]:
-                # FinDER contains financial document retrieval data
-                query = item.get('query', item.get('question', ''))
-                positive_doc = item.get('positive', item.get('document', ''))
-                negative_docs = item.get('negatives', [])
+                # FinDER has: text (query), answer (gold answer), references (list of evidence)
+                query = item.get('text', '')
+                references = item.get('references', [])
                 
-                if query and positive_doc:
-                    # Positive pair
-                    train_samples.append(InputExample(texts=[query, positive_doc], label=1.0))
-                    
-                    # Negative pairs
-                    for neg_doc in negative_docs[:3]:  # Limit to 3 negatives per query
-                        if neg_doc:
-                            train_samples.append(InputExample(texts=[query, neg_doc], label=0.0))
+                if query and references:
+                    # Create positive samples from the references
+                    for reference in references:
+                        if reference:  # reference is a string
+                            train_samples.append(InputExample(texts=[query, reference], label=1.0))
         
         print(f"Created {len(train_samples)} samples from FinDER")
         return train_samples
